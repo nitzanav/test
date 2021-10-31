@@ -8,7 +8,7 @@ import javax.validation.constraints.*;
  * A Book.
  */
 @Entity
-@Table(name = "book")
+@Table(name = "book", indexes = @Index(columnList = "price"))
 public class Book implements Serializable {
 
     private static final long serialVersionUID = 1L;
