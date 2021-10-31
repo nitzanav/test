@@ -151,6 +151,20 @@ public class BookResource {
     }
 
     /**
+     * {@code GET  /books/cheap} : get all the cheap books.
+     *
+     * @param pageable the pagination information.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of books in body.
+     */
+    @GetMapping("/books/cheap")
+    public ResponseEntity<List<Book>> getAllCheapBooks(Pageable pageable) {
+        log.debug("REST request to get a page of cheap Books");
+        Page<Book> page = bookService.findCheap(pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
      * {@code GET  /books/:id} : get the "id" book.
      *
      * @param id the id of the book to retrieve.

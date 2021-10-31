@@ -2,6 +2,8 @@ package com.interview.bookstore.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -9,6 +11,7 @@ import com.interview.bookstore.IntegrationTest;
 import com.interview.bookstore.domain.Author;
 import com.interview.bookstore.domain.Book;
 import com.interview.bookstore.repository.BookRepository;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,6 +36,7 @@ class BookResourceIT {
     private static final String DEFAULT_TITLE = "AAAAAAAAAA";
     private static final String UPDATED_TITLE = "BBBBBBBBBB";
 
+    private static final Float CHEAP_BOOK_MAX_PRICE = 20F; // TODO reuse with BookServie.CHEAP_BOOK_MAX_PRICE, better use some configuration. Using magic numbers in test is a bad practice because it will couple the tests to the implementation class diagram, which will require modification of tests when the implementation changes.
     private static final Float DEFAULT_PRICE = 0F;
     private static final Float UPDATED_PRICE = 1F;
 
@@ -59,8 +63,8 @@ class BookResourceIT {
      * This is a static method, as tests for other entities might also need it,
      * if they test an entity which requires the current entity.
      */
-    public static Book createEntity(EntityManager em) {
-        Book book = new Book().title(DEFAULT_TITLE).price(DEFAULT_PRICE);
+    public static Book createEntity(EntityManager em, Float price) {
+        Book book = new Book().title(DEFAULT_TITLE).price(price);
         // Add required entity
         Author author;
         if (TestUtil.findAll(em, Author.class).isEmpty()) {
@@ -97,7 +101,7 @@ class BookResourceIT {
 
     @BeforeEach
     public void initTest() {
-        book = createEntity(em);
+        book = createEntity(em, DEFAULT_PRICE);
     }
 
     @Test
@@ -183,6 +187,32 @@ class BookResourceIT {
             .andExpect(jsonPath("$.[*].id").value(hasItem(book.getId().intValue())))
             .andExpect(jsonPath("$.[*].title").value(hasItem(DEFAULT_TITLE)))
             .andExpect(jsonPath("$.[*].price").value(hasItem(DEFAULT_PRICE.doubleValue())));
+    }
+
+    @Test
+    @Transactional
+    void getCheapBooks() throws Exception {
+        // Initialize the database
+
+        Float lessThanCheapBookPrice = CHEAP_BOOK_MAX_PRICE - 1F;
+        Float cheapBookPrice = CHEAP_BOOK_MAX_PRICE;
+        Float notCheapBookPrice = CHEAP_BOOK_MAX_PRICE + 1F;
+
+        Book lessThanCheapBook = createEntity(em, lessThanCheapBookPrice);
+        Book cheapBook = createEntity(em, cheapBookPrice);
+        Book notCheapBook = createEntity(em, notCheapBookPrice);
+
+        bookRepository.saveAllAndFlush(Arrays.<Book>asList(lessThanCheapBook, cheapBook, notCheapBook));
+
+        // Get all the bookList
+        restBookMockMvc
+            .perform(get(ENTITY_API_URL + "/cheap?sort=id,desc"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(jsonPath("$.[*].price").value(hasItem((lessThanCheapBookPrice.doubleValue()))))
+            .andExpect(jsonPath("$.[*].price").value(hasItem((cheapBookPrice.doubleValue()))))
+            .andExpect(jsonPath("$.[*].price").value(not(hasItem((notCheapBookPrice.doubleValue())))))
+            .andExpect(jsonPath("$.[*].price").value(iterableWithSize(2)));
     }
 
     @Test

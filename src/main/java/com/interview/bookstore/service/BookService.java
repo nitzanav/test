@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BookService {
 
+    private static final Float CHEAP_BOOK_MAX_PRICE = 20F; // TODO reuse with BookResourceIT.CHEAP_BOOK_MAX_PRICE, better use some configuration. Using magic numbers in test is a bad practice because it will couple the tests to the implementation class diagram, which will require modification of tests when the implementation changes.
+
     private final Logger log = LoggerFactory.getLogger(BookService.class);
 
     private final BookRepository bookRepository;
@@ -70,6 +72,18 @@ public class BookService {
     public Page<Book> findAll(Pageable pageable) {
         log.debug("Request to get all Books");
         return bookRepository.findAll(pageable);
+    }
+
+    /**
+     * Get all the cheap books.
+     *
+     * @param pageable the pagination information.
+     * @return the list of entities.
+     */
+    @Transactional(readOnly = true)
+    public Page<Book> findCheap(Pageable pageable) {
+        log.debug("Request to get all cheap Books");
+        return bookRepository.findByPriceLessThanEqual(CHEAP_BOOK_MAX_PRICE, pageable);
     }
 
     /**
